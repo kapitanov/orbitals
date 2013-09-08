@@ -1,9 +1,10 @@
 ﻿# -*- coding: utf-8 -*-
 import orbitals.basicTypes as basicTypes
+import orbitals.tools as tools
 import numpy
 import math
 
-def renderCircle(plot, position, radius, name, fill = False, color = None):
+def renderCircle(plot, position, radius, name = None, fill = False, color = None):
     ts = [math.radians(x) for x in numpy.arange(0, 360, 1)]
     xs = [position.x + radius * math.cos(x) for x in ts]
     ys = [position.y + radius * math.sin(x) for x in ts]
@@ -23,8 +24,6 @@ class SpaceObjectController:
         self._object     = None
         self._dependents = []
         self._isUpToDate = True
-        self._lastTime   = True
-        self._lastDelta  = True
 
     @property
     def isAffectedByForces(self):
@@ -36,30 +35,30 @@ class SpaceObjectController:
         self._object      = object
         object.controller = self
 
-    def beginStep(self, t, dt):
+    def beginStep(self, ctx):
         """Обновление шага расчета"""
         self._object.acceleration = basicTypes.Vector.zero()
-        self._object.force = basicTypes.Vector.zero()
+        self._object.force        = basicTypes.Vector.zero()
         self._clearDependents()
-        self._beginStepCore(self._object, t, dt)
+        self._beginStepCore(self._object, ctx)
 
-    def endStep(self, t, dt, isDependencyCall = False):
+    def endStep(self, ctx, isDependencyCall = False):
         """Завершение шага расчета"""
         self._object.acceleration = self._object.force * (1. / self._object.mass)
-        self._object.velocity     = self._object.velocity + self._object.acceleration * dt
-        self._object.position     = self._object.position + self._object.velocity * dt
-        self._invokeDependents(t, dt)
+        self._object.velocity     = self._object.velocity + self._object.acceleration * ctx.dt
+        self._object.position     = self._object.position + self._object.velocity * ctx.dt
+        self._invokeDependents(ctx)
 
-    def _beginStepCore(self, object, t, dt):
+    def _beginStepCore(self, object, ctx):
         """Обновление шага расчета"""
         raise Exception('SpaceObjectController._beginStepCore() is not implemented')
 
-    def putDependent(self, dependent):
+    def putDependent(self, ctx, dependent):
         """Добавить зависимый контролллер.
            Контроллер dependent будет вызван после завершения расчета данного контроллера
         """
         if self._isUpToDate:
-            dependent.endStep(self._lastTime, self._lastDelta, isDependencyCall = True)
+            dependent.endStep(ctx, isDependencyCall = True)
         else:
             self._dependents.append(dependent)
 
@@ -68,13 +67,11 @@ class SpaceObjectController:
         self._dependents.clear()
         self._isUpToDate = False
 
-    def _invokeDependents(self, t, dt):
+    def _invokeDependents(self, ctx):
         """Вызвать зависимые контроллеры"""
         self._isUpToDate = True
-        self._lastTime   = t
-        self._lastDelta  = dt
         for dependent in self._dependents:
-            dependent.endStep(t, dt, isDependencyCall = True)
+            dependent.endStep(ctx, isDependencyCall = True)
 
 class ChainedSpaceObjectController(SpaceObjectController):
     """Контроллер космического объекта с поддержкой цепочки контроллеров - базовый класс"""
@@ -88,7 +85,7 @@ class ChainedSpaceObjectController(SpaceObjectController):
             self._nextController = object.controller
         super().attach(object)
 
-    def beginStep(self, t, dt):
+    def beginStep(self, ctx):
         """Обновление шага расчета"""
         self._object.acceleration = basicTypes.Vector.zero()
         self._object.force = basicTypes.Vector.zero()
@@ -96,12 +93,12 @@ class ChainedSpaceObjectController(SpaceObjectController):
 
         # Вызываем предыдущий контроллер
         if self._nextController != None:
-            self._nextController._beginStepCore(self._object, t, dt)
-        self._beginStepCore(self._object, t, dt)
+            self._nextController._beginStepCore(self._object, ctx)
+        self._beginStepCore(self._object, ctx)
         
 class GravitySpaceObjectController(ChainedSpaceObjectController):
     """Гравитационный контроллер"""
-    def _beginStepCore(self, object, t, dt):
+    def _beginStepCore(self, object, ctx):
         """Обновление шага расчета"""
         # Никаких действий не требуется
         return
@@ -111,10 +108,10 @@ class DynamicSpaceObjectController(ChainedSpaceObjectController):
     def __init__(self):
         super().__init__()
                 
-    def _beginStepCore(self, object, t, dt):
+    def _beginStepCore(self, object, ctx):
         """Обновление шага расчета"""
         for event in object.events:
-            event.apply(object, t, dt)
+            event.apply(object, ctx)
 
 class StaticSpaceObjectController(SpaceObjectController):
     """Контроллер для статического объекта"""
@@ -126,15 +123,15 @@ class StaticSpaceObjectController(SpaceObjectController):
         """Является ли данный объект участником динамического расчета"""
         return False
         
-    def beginStep(self, t, dt):
+    def beginStep(self, ctx):
         """Обновление шага расчета"""
         self._object.acceleration = basicTypes.Vector.zero()
         self._object.force = basicTypes.Vector.zero()
         self._clearDependents()
     
-    def endStep(self, t, dt, isDependencyCall = False):
+    def endStep(self, ctx, isDependencyCall = False):
         """Завершение шага расчета"""
-        self._invokeDependents(t, dt)
+        self._invokeDependents(ctx)
 
 class CollidedSpaceObjectController(SpaceObjectController):
     """Контроллер для объекта, столкнувшегося с другим"""
@@ -148,19 +145,19 @@ class CollidedSpaceObjectController(SpaceObjectController):
         """Является ли данный объект участником динамического расчета"""
         return False
         
-    def _beginStepCore(self, object, t, dt):
+    def _beginStepCore(self, object, ctx):
         """Обновление шага расчета"""
         self._object.acceleration = basicTypes.Vector.zero()
         self._object.force = basicTypes.Vector.zero()
         self._clearDependents()
     
-    def endStep(self, t, dt, isDependencyCall = False):
+    def endStep(self, ctx, isDependencyCall = False):
         """Завершение шага расчета"""
         if isDependencyCall:
             self._object.position = self._collider.position + self._relativePosition
-            self._invokeDependents(t, dt)
+            self._invokeDependents(ctx)
         else:
-            self._collider.controller.putDependent(self)
+            self._collider.controller.putDependent(ctx, self)
 
 class SpaceObject:
     """Базовый класс космического объекта"""
@@ -265,22 +262,22 @@ class SpaceObject:
     def controller(self, controller):
         self._controller = controller
 
-    def beginStep(self, t, dt):
+    def beginStep(self, ctx):
         """Инициализация шага расчета"""
-        self._controller.beginStep(t, dt)
+        self._controller.beginStep(ctx)
 
-    def endStep(self, t, dt, putIntoHistory = True):
+    def endStep(self, ctx):
         """Завершение шага расчета"""
-        self._controller.endStep(t, dt)
-        if putIntoHistory:
-            self._position.put(t)
-            self._velocity.put(t)
-            self._acceleration.put(t)
-            self._force.put(t)
+        self._controller.endStep(ctx)
+        if ctx.putIntoHistory:
+            self._position.put(ctx.t)
+            self._velocity.put(ctx.t)
+            self._acceleration.put(ctx.t)
+            self._force.put(ctx.t)
 
     def renderStatic(self, plot):
         """Отрисовка объекта как статического тела"""
-        return renderCircle(plot, self.position, self.radius, name = self.name, fill = True)
+        return renderCircle(plot, self.position, self.radius, fill = True)
 
     def renderDynamic(self, plot, index):
         """Отрисовка объекта как динамического тела в момент времени t[index]"""
@@ -289,26 +286,72 @@ class SpaceObject:
 
 class SpaceShipControlEvent:
     def __init__(self, start, end):
-        self._start = start
-        self._end   = end
+        self._start    = start
+        self._end      = end
+        self._isActive = False
 
-    def apply(self, object, t, dt):
-        if self._start <= t and self._end > t:
-            self._applyCore(object, t, dt)
+    def apply(self, object, ctx):
+        if self._start <= ctx.t and self._end > ctx.t:
+            if not self._isActive:
+                self._isActive = True
+                self._onStart(object, ctx)
+            self._applyCore(object, ctx)
+        else:
+            if self._isActive:
+                self._isActive = False
+                self._onEnd(object, ctx)
 
-    def _applyCore(self, object, t, dt):
+    def _applyCore(self, object, ctx):
         raise Exception('SpaceShipControlEvent._applyCore() not implemented')
 
+    def _onStart(self, object, ctx):
+        return
+
+    def _onEnd(self, object, ctx):
+        return
+
 class BurnControlEvent(SpaceShipControlEvent):
-    def __init__(self, force, start, end):
+    def __init__(self, force, fuelMass, start, end):
         super().__init__(start, end)
-        self._force = force
-    def _applyCore(self, object, t, dt):
+        self._force    = force
+        self._fuelMass = fuelMass
+        self._duration = end - start
+
+    def _applyCore(self, object, ctx):
+        # Сжигаем часть топлива
+        burnedFuel = self._fuelMass * ctx.dt / self._duration
+        object.mass = object.mass - burnedFuel
+
+        # Добавляем импульс двигателя
         object.force = object.force + self._force
+        
+    def _onStart(self, object, ctx):
+        ctx.log.info('Объект {0} - двигатель включен, тяга {1}'.format(object.name, tools.Formatter.force(self._force.length)))
+        return
+
+    def _onEnd(self, object, ctx):
+        ctx.log.info('Объект {0} - двигатель выключен'.format(object.name))
+        return
+
+class StageSeparationControlEvent(SpaceShipControlEvent):
+    def __init__(self, name, separatedMass, start, end):
+        super().__init__(start, end)
+        self._name      = name
+        self._mass      = separatedMass
+        self._separated = False
+
+    def _applyCore(self, object, ctx):
+        # Отделяем часть массы КА
+        if not self._separated:
+            ctx.log.info('Объект {0} - отделение ступени {1} массой {2}'.format(object.name, self._name,  tools.Formatter.mass(self._mass)))
+            self._separated = True
+            object.mass = object.mass - self._mass
 
 class SpaceShipControlEventFactory:
-    def burn(force, range):
-        return BurnControlEvent(force, range[0], range[1])
+    def burn(range, force, fuel = 0):
+        return BurnControlEvent(force, fuel, range[0], range[1])
+    def stageSeparation(range, name = '?', mass = 0):
+        return StageSeparationControlEvent(name, mass, range[0], range[1])
     
 class SpaceShip(SpaceObject):
     """Космический корабль"""

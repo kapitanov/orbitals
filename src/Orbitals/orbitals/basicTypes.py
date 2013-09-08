@@ -86,9 +86,15 @@ class VectorHistory:
         plot.plot(self._ts, self._ys, '--', label = ('{0}/{1}y'.format(self._ownerName, self._parameterName)))
         plot.plot(self._ts, self._rs, '-',   label = ('{0}/|{1}|'.format(self._ownerName, self._parameterName)))
         
-    def trajectory(self, plot):
+    def trajectory(self, plot, index = None):
         """Вывести траекторию на график"""
-        plot.plot(self._xs, self._ys, '-', label = self._ownerName)
+        if index == None:
+            return plot.plot(self._xs, self._ys, '-', label = self._ownerName,linewidth = 2)
+        else:
+            indices = range(int(index)) 
+            xs = [self._xs[i] for i in indices]
+            ys = [self._ys[i] for i in indices]
+            return plot.plot(xs, ys, '-',  color = 'r', linewidth = 2)
 
 class VectorWithHistory:
     """Вектор с историей изменений"""

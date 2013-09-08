@@ -23,6 +23,11 @@ class RendererAnimationOutput(RendererOutput):
         super().__init__('Анимация')
         self._animation = animation
 
+    def show(self):
+        fig = pylab.gcf()
+        fig.canvas.set_window_title(self._name)
+        pylab.show()
+
     def save(path):
         print ('Отрисовка анимации завершена')
         self._animation.save('animation.mp4', fps = 30)
@@ -106,6 +111,10 @@ class Renderer:
                 for obj in self._objects:
                     part = obj.renderDynamic(plot, i)
                     frame.append(part)
+
+                    part, = obj.positionHistory.trajectory(plot, i)
+                    frame.append(part)
+
                 frames.append(frame)
 
                 pylab.draw()
@@ -116,5 +125,5 @@ class Renderer:
 
         bar.end()
 
-        animation = matplotlib.animation.ArtistAnimation(fig, frames, interval=1,blit=False)
+        animation = matplotlib.animation.ArtistAnimation(fig, frames, interval=10, blit=False)
         return RendererAnimationOutput(animation)
