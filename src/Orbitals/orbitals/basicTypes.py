@@ -40,6 +40,10 @@ class Vector:
         """Оператор * - умножение на константу"""
         return Vector(self.x * k, self.y * k)
 
+    def __neg__ (self):
+        """Унарный минус"""
+        return self * (-1.0)
+
     def __div__(self, k):
         """Оператор / - деление на константу"""
         return Vector(self.x / k, self.y / k)

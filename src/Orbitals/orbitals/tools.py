@@ -32,3 +32,12 @@ class ProgressBar:
             sys.stdout.write(' ')
         sys.stdout.write('       \r')
         sys.stdout.flush()
+
+class Formatter:
+    """Утилитарный класс для форматирования значений величин"""
+    def time(totalSeconds):
+        totalMinutes, seconds = divmod(totalSeconds, 60)
+        hours,   minutes      = divmod(totalMinutes, 60)
+        formatted             = 'T+ {0:02d}:{1:02d}:{2:02d}'.format(int(hours), int(minutes), int(seconds))
+        return formatted
+

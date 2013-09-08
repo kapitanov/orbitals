@@ -66,6 +66,32 @@ class TimeRange:
     def iterations(self):
         """Число итераций"""
         return self._iterations
+    
+class SolverLogEntry:
+    """Запись в логе вычислителя"""
+    def __init__(self, time, message):
+        self._time    = time
+        self._message = message
+
+    def print(self):
+        """Вывод записи в консоль"""
+        print ('{0}:   {1}'.format(tools.Formatter.time(self._time), self._message))
+
+class SolverLog:
+    """Лог вычислителя"""
+
+
+    def __init__(self):
+        self._events = []
+
+    def write(self, time, message):
+        """Добавить запись в лог"""
+        self._events.append(SolverLogEntry(time, message))
+
+    def print(self):
+        """Вывод лога в консоль"""
+        for event in self._events:
+            event.print()
 
 class Solver:
     """Вычислитель орбитальных траекторий"""
@@ -74,6 +100,7 @@ class Solver:
         self._times              = []
         self._range              = TimeRange(1)
         self._historyInterval    = 1
+        self._log                = SolverLog()
 
     @property
     def objects(self):
@@ -112,29 +139,45 @@ class Solver:
         bar.update(0, self._range.iterations)
 
         t = self._range.beginTime
+        self._log.write(t, 'Запуск симуляции');
         for i in range(self._range.iterations):
             self._beginStep(t)
             self._runStep(t)
             self._endStep(t, i)
 
-            t = t + self. _range.timeStep
+            t = t + self._range.timeStep
             bar.update(i, self._range.iterations)
 
         bar.end()
+        self._log.write(t, 'Симуляция завершена');
         print ('Расчет траекторий завершен\n')
+        self._log.print()
 
     def _beginStep(self, t):
         """Начать шаг расчета"""
         for obj in self._objects:
-            obj.beginStep(t)
+            obj.beginStep(t, self._range.timeStep)
 
     def _runStep(self, t):
         """Выполнить шаг расчета"""
         for objA in self._objects:
             for objB in self._objects:
-                if objA != objB and not objA.isStatic:
+                # 1. Объект не влияет сам на себя
+                # 2. Объект должен быть подвержен действию сил (втч сил гравитации)
+                #    Напр. объект, столкнувшийся с другим, более не подвержен действию внешних сил
+                if objA != objB and objA.controller.isAffectedByForces:
                     rVector = objB.position - objA.position
                     distance = rVector.length
+
+                    # расчет коллизий - меньший по массе объект может столкнуться с большим по массе
+                    if objA.mass < objB.mass and distance <= objA.radius + objB.radius:
+                       # Объект A столкнулся с объектом B
+                       types.CollidedSpaceObjectController(objB, -rVector).attach(objA)
+                       objA.beginStep(t, self._range.timeStep)
+                       self._log.write(t, 'Объект {0} столкнулся с объектом {1}'.format(objA.name, objB.name))
+                       continue
+
+                    # расчет гравитации
                     if distance > 0:
                         g = G * objA.mass * objB.mass
                         h = 1. / distance**3
@@ -145,12 +188,7 @@ class Solver:
         """Завершить шаг расчета"""
         putIntoHistory = divmod(i, self._historyInterval)[1] == 0
         for obj in self._objects:
-            if not obj.isStatic:
-                obj.acceleration = obj.force * (1. / obj.mass)
-                obj.velocity     = obj.velocity + obj.acceleration * self._range.timeStep
-                obj.position     = obj.position + obj.velocity * self._range.timeStep
-                        
-            obj.endStep(t, putIntoHistory)
+            obj.endStep(t, self._range.timeStep, putIntoHistory)
 
         if putIntoHistory:
                 self._times.append(t)

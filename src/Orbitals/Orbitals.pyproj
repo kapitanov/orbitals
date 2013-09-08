@@ -24,6 +24,7 @@
   <ItemGroup>
     <Compile Include="Orbitals.py" />
     <Compile Include="orbitals\basicTypes.py" />
+    <Compile Include="orbitals\entities.py" />
     <Compile Include="orbitals\renderer.py" />
     <Compile Include="orbitals\solver.py" />
     <Compile Include="orbitals\types.py" />
