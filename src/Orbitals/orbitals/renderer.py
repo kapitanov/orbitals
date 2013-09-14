@@ -85,6 +85,7 @@ class Renderer:
         for obj in self._objects:
             if not obj.isStatic:
                 obj.positionHistory.trajectory(plot)
+                obj.positionHistory.quiver(obj.velocityHistory, plot, step = 100)
             else:
                 obj.renderStatic(plot)
 

@@ -11,9 +11,9 @@ falcon9.position = orbitals.Vector(0, earth.radius + orbitals.Units.dimention.m(
 solver = orbitals.Solver()
 solver.addObject(earth)
 solver.addObject(falcon9)
-solver.timeRange = orbitals.TimeRange(orbitals.Units.time.seconds(10000)).withIterations(100000)
+solver.timeRange       = orbitals.TimeRange(orbitals.Units.time.seconds(10000)).withIterations(100000)
 solver.enableTrace     = False
-solver.historyInterval = 1
+solver.historyInterval = 50
 
 solver.run()
 

@@ -1,9 +1,9 @@
 ﻿# -*- coding: utf-8 -*-
-import orbitals.basicTypes as basicTypes
-import orbitals.types as types
-import orbitals.tools as tools
 import math
 from colorconsole import terminal
+from orbitals.types import CollidedSpaceObjectController
+from orbitals.tools import Formatter
+from orbitals.tools import ProgressBar
 
 # гравитационная постоянная
 G = 6.67384 * math.pow(10, -11) # м^3 кг^-1 с^-2
@@ -70,7 +70,7 @@ class SolverLogEntry:
             if self._level == SolverLogLevel.trace:
                 color = 'DGRAY'
         screen.set_color(fg = terminal.colors[color])
-        print ('{0}:   {1}'.format(tools.Formatter.time(self._time), self._message))
+        print ('{0}:   {1}'.format(Formatter.time(self._time), self._message))
 
 class SolverLog:
     """Лог вычислителя"""
@@ -218,7 +218,7 @@ class Solver:
     def run(self):
         """Запустить расчет"""
         print ('Расчет траекторий')
-        bar = tools.ProgressBar()
+        bar = ProgressBar()
         bar.update(0, self._range.iterations)
 
         self._ctx.begin()
@@ -255,10 +255,10 @@ class Solver:
                     # расчет коллизий - меньший по массе объект может столкнуться с большим по массе
                     if objA.mass < objB.mass and distance <= objA.radius + objB.radius:
                        # Объект A столкнулся с объектом B
-                       types.CollidedSpaceObjectController(objB, -rVector).attach(objA)
+                       CollidedSpaceObjectController(objB, -rVector).attach(objA)
                        objA.beginStep(self._ctx)
                        relativeVelocity = (objA.velocity - objB.velocity).length
-                       self._log.err(self._ctx.t, 'Объект {0} столкнулся с объектом {1}, скорость столкновения {2}'.format(objA.name, objB.name, tools.Formatter.speed(relativeVelocity)))
+                       self._log.err(self._ctx.t, 'Объект {0} столкнулся с объектом {1}, скорость столкновения {2}'.format(objA.name, objB.name, Formatter.speed(relativeVelocity)))
                        continue
 
                     # расчет гравитации

@@ -1,11 +1,39 @@
 ﻿# -*- coding: utf-8 -*-
-import orbitals.basicTypes as basicTypes
-import orbitals.tools as tools
 import numpy
 import math
 
+from orbitals.basicTypes import Vector
+from orbitals.basicTypes import VectorWithHistory
+from orbitals.tools      import Formatter
+
 def renderCircle(plot, position, radius, name = None, fill = False, color = None):
     ts = [math.radians(x) for x in numpy.arange(0, 360, 1)]
+  
+    xs = [position.x + (100*1000 + radius) * math.cos(x) for x in ts]
+    ys = [position.y + (100*1000 + radius) * math.sin(x) for x in ts]
+
+    plot.plot(xs, ys, '.', color = 'red')
+
+    xs = [position.x + (200*1000 + radius) * math.cos(x) for x in ts]
+    ys = [position.y + (200*1000 + radius) * math.sin(x) for x in ts]
+
+    plot.plot(xs, ys, '.', color = 'red')
+
+    xs = [position.x + (300*1000 + radius) * math.cos(x) for x in ts]
+    ys = [position.y + (300*1000 + radius) * math.sin(x) for x in ts]
+
+    plot.plot(xs, ys, '.', color = 'red')
+
+    xs = [position.x + (400*1000 + radius) * math.cos(x) for x in ts]
+    ys = [position.y + (400*1000 + radius) * math.sin(x) for x in ts]
+
+    plot.plot(xs, ys, '.', color = 'red')
+
+    xs = [position.x + (500*1000 + radius) * math.cos(x) for x in ts]
+    ys = [position.y + (500*1000 + radius) * math.sin(x) for x in ts]
+
+    plot.plot(xs, ys, '.', color = 'red')
+
     xs = [position.x + radius * math.cos(x) for x in ts]
     ys = [position.y + radius * math.sin(x) for x in ts]
 
@@ -37,8 +65,8 @@ class SpaceObjectController:
 
     def beginStep(self, ctx):
         """Обновление шага расчета"""
-        self._object.acceleration = basicTypes.Vector.zero()
-        self._object.force        = basicTypes.Vector.zero()
+        self._object.acceleration = Vector.zero
+        self._object.force        = Vector.zero
         self._clearDependents()
         self._beginStepCore(self._object, ctx)
 
@@ -87,8 +115,8 @@ class ChainedSpaceObjectController(SpaceObjectController):
 
     def beginStep(self, ctx):
         """Обновление шага расчета"""
-        self._object.acceleration = basicTypes.Vector.zero()
-        self._object.force = basicTypes.Vector.zero()
+        self._object.acceleration = Vector.zero
+        self._object.force = Vector.zero
         self._clearDependents()
 
         # Вызываем предыдущий контроллер
@@ -125,8 +153,8 @@ class StaticSpaceObjectController(SpaceObjectController):
         
     def beginStep(self, ctx):
         """Обновление шага расчета"""
-        self._object.acceleration = basicTypes.Vector.zero()
-        self._object.force = basicTypes.Vector.zero()
+        self._object.acceleration = Vector.zero
+        self._object.force        = Vector.zero
         self._clearDependents()
     
     def endStep(self, ctx, isDependencyCall = False):
@@ -147,8 +175,8 @@ class CollidedSpaceObjectController(SpaceObjectController):
         
     def _beginStepCore(self, object, ctx):
         """Обновление шага расчета"""
-        self._object.acceleration = basicTypes.Vector.zero()
-        self._object.force = basicTypes.Vector.zero()
+        self._object.acceleration = Vector.zero
+        self._object.force = Vector.zero
         self._clearDependents()
     
     def endStep(self, ctx, isDependencyCall = False):
@@ -166,10 +194,10 @@ class SpaceObject:
         self._name         = name
         self._mass         = mass
         self._radius       = radius
-        self._position     = basicTypes.VectorWithHistory(name, "Position")
-        self._velocity     = basicTypes.VectorWithHistory(name, "V")
-        self._force        = basicTypes.VectorWithHistory(name, "F")
-        self._acceleration = basicTypes.VectorWithHistory(name, "a")
+        self._position     = VectorWithHistory(name, "Position")
+        self._velocity     = VectorWithHistory(name, "V")
+        self._force        = VectorWithHistory(name, "F")
+        self._acceleration = VectorWithHistory(name, "a")
         self._isStatic     = False
         self._controller   = None
 
@@ -281,7 +309,7 @@ class SpaceObject:
 
     def renderDynamic(self, plot, index):
         """Отрисовка объекта как динамического тела в момент времени t[index]"""
-        position = basicTypes.Vector(self._position.history._xs[index], self._position.history._ys[index])
+        position = Vector(self._position.history._xs[index], self._position.history._ys[index])
         return renderCircle(plot, position, self.radius, name = self.name, color = 'b')
 
 class SpaceShipControlEvent:
@@ -319,14 +347,16 @@ class BurnControlEvent(SpaceShipControlEvent):
 
     def _applyCore(self, object, ctx):
         # Сжигаем часть топлива
-        burnedFuel = self._fuelMass * ctx.dt / self._duration
+        burnedFuel  = self._fuelMass * ctx.dt / self._duration
         object.mass = object.mass - burnedFuel
 
         # Добавляем импульс двигателя
-        object.force = object.force + self._force
+        direction    = object.velocity.normalize()
+        force        = self._force.rotate(direction)
+        object.force = object.force + force
         
     def _onStart(self, object, ctx):
-        ctx.log.info('Объект {0} - двигатель включен, тяга {1}'.format(object.name, tools.Formatter.force(self._force.length)))
+        ctx.log.info('Объект {0} - двигатель включен, тяга {1}'.format(object.name, Formatter.force(self._force.length)))
         return
 
     def _onEnd(self, object, ctx):
@@ -343,9 +373,9 @@ class StageSeparationControlEvent(SpaceShipControlEvent):
     def _applyCore(self, object, ctx):
         # Отделяем часть массы КА
         if not self._separated:
-            ctx.log.info('Объект {0} - отделение ступени {1} массой {2}'.format(object.name, self._name,  tools.Formatter.mass(self._mass)))
+            ctx.log.info('Объект {0} - отделение ступени {1} массой {2}'.format(object.name, self._name,  Formatter.mass(self._mass)))
             self._separated = True
-            object.mass = object.mass - self._mass
+            object.mass     = object.mass - self._mass
 
 class SpaceShipControlEventFactory:
     def burn(range, force, fuel = 0):
@@ -362,6 +392,8 @@ class SpaceShip(SpaceObject):
 
         # меняем контроллер на динамический
         DynamicSpaceObjectController().attach(self)
+        # задаем начальный вектор скорости
+        self.velocity = Vector.fromPolar(1, 90)
 
     @property
     def events(self):

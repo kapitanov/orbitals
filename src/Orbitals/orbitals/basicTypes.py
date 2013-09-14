@@ -28,6 +28,17 @@ class Vector:
         """Длина вектора"""
         return math.sqrt(self._x*self._x + self._y*self._y)
 
+    @property
+    def angle(self):
+        """Угол вектора относительно оси OX"""
+        angle = math.atan2(self._y, self._x)
+        return angle
+
+    @property
+    def angleDeg(self):
+        """Угол вектора относительно оси OX, градусы"""
+        return  math.degrees(self.angle)
+
     def __add__(self, v):
         """Оператор +"""
         return Vector(self.x + v.x, self.y + v.y)
@@ -51,15 +62,46 @@ class Vector:
     def __str__(self):
         """Преобразование в строку"""
         return ('({0}, {1})'.format(self._x, self._y))
+
+    def __eq__(self, v):
+        """Оператор =="""
+        return self._x == v._x and self._y == v._y
+
+    def normalize(self):
+        """Нормализация вектора"""
+        length = self.length
+        if length == 0:
+            return Vector.zero
+        
+        x = self._x / length
+        y = self._y / length
+        return Vector(x, y)
+
+    def rotate(self, axis):
+        """Повернуть вектор относительно оси OX'"""
+        radius = self.length
+        angle = axis.angle + self.angle
+        return Vector(radius * math.cos(angle), radius * math.sin(angle))
+
+    def toStr(self, format = 'c'):
+        if format == 'c':
+            return self.__str__()
+        if format == 'r':
+            return ('({0} ^ {1})'.format(self.length, math.degrees(self.angle)))
+        return '?'
     
+    @staticmethod
     def fromPolar(radius, angle):
         """Создание вектора из полярных координат"""
         angle = math.radians(angle)
         return Vector(radius * math.cos(angle), radius * math.sin(angle))
-
-    def zero():
-        """Нулевой вектор"""
-        return Vector(0, 0)
+    
+    zero  = None # Нулевой вектор
+    unitX = None # Единичный вектор оси OX
+    unitY = None # Единичный вектор оси OY
+Vector.zero  = Vector(0, 0)
+Vector.unitX = Vector(1, 0)
+Vector.unitY = Vector(0, 1)
 
 class VectorHistory:
     """История изменений значений вектора"""
@@ -96,11 +138,27 @@ class VectorHistory:
             ys = [self._ys[i] for i in indices]
             return plot.plot(xs, ys, '-',  color = 'r', linewidth = 2)
 
+    def quiver(self,  vectors, plot, index  = None, step = 1):
+        """Вывести на график поле векторов, используея self как XY и vectors как UV"""
+        if index == None and step == 1:
+            plot.quiver(self._xs, self._ys, vectors._xs, vectors._ys)
+        else:
+            if index == None:
+                index = 0
+            x, y, u, v = [], [], [], []
+            for i in range(len(self._ts)):
+                if i >= index and divmod(i, step)[1] == 0:
+                    x.append(self._xs[i])
+                    y.append(self._ys[i])
+                    u.append(vectors._xs[i])
+                    v.append(vectors._ys[i])
+            plot.quiver(x, y, u, v)
+
 class VectorWithHistory:
     """Вектор с историей изменений"""
     
     def __init__(self, ownerName, parameterName):
-         self._value  = Vector.zero()
+         self._value  = Vector.zero
          self._history = VectorHistory(ownerName, parameterName)
 
     @property
