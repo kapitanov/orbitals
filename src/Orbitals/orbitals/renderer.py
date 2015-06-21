@@ -4,7 +4,7 @@ import orbitals.types as types
 import orbitals.solver as solver
 import orbitals.tools as tools
 
-import pylab
+import matplotlib.pylab as pylab
 import math
 import numpy
 import matplotlib.animation

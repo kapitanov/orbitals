@@ -6,7 +6,7 @@ earth = orbitals.EntityFactory.earth()
 moon = orbitals.EntityFactory.moon()
 
 falcon9 = orbitals.EntityFactory.falcon9()
-falcon9.position = orbitals.Vector(0, earth.radius + orbitals.Units.dimention.m(100))
+falcon9.position = orbitals.Vector(0, earth.radius + orbitals.Units.dimension.m(100))
 
 solver = orbitals.Solver()
 solver.addObject(earth)

@@ -15,7 +15,7 @@ class EntityFactory:
 
     def earth():
         """Конструктор Земли (статической)"""
-        earth = SpaceObject('Earth', mass = 5.97219E24, radius = unit.dimention.km(6371))
+        earth = SpaceObject('Earth', mass = 5.97219E24, radius = unit.dimension.km(6371))
         earth.isStatic = True
         StaticSpaceObjectController().attach(earth)
         return earth

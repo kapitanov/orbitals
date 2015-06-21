@@ -81,7 +81,7 @@ class UnitsFacade:
         return self._force
 
     @property
-    def dimention(self):
+    def dimension(self):
         """Размер"""
         return self._dimention
 
