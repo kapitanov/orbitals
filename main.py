@@ -1,5 +1,6 @@
-﻿# -*- coding: utf-8 -*-
-import orbitals
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+import lib as orbitals
 import math
 
 earth = orbitals.EntityFactory.earth()
